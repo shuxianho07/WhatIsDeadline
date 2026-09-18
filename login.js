@@ -1,20 +1,35 @@
 const loginForm = document.getElementById('login-form');
+const registerForm = document.getElementById('register-form');
 const btnGuest = document.getElementById('btn-guest');
-const btnRegister = document.getElementById('btn-register');
+const showRegister = document.getElementById('show-register');
+const showLogin = document.getElementById('show-login');
 const loginError = document.getElementById('login-error');
+const regError = document.getElementById('reg-error');
 
 let usersDB = JSON.parse(localStorage.getItem('prepmate_users')) || { admin: '123456' };
+
+// Backwards compatibility: convert old string passwords to objects
+let dbUpdated = false;
+Object.keys(usersDB).forEach(key => {
+    if (typeof usersDB[key] === 'string') {
+        usersDB[key] = { pass: usersDB[key], email: '' };
+        dbUpdated = true;
+    }
+});
+if (dbUpdated) {
+    localStorage.setItem('prepmate_users', JSON.stringify(usersDB));
+}
 
 function login(username, password) {
     if (!username) username = 'guest';
 
     if (username !== 'guest') {
         if (!usersDB[username]) {
-            loginError.textContent = 'Account not found. Click Register.';
+            loginError.textContent = 'Account not found. Please register.';
             loginError.style.display = 'block';
             return;
         }
-        if (usersDB[username] !== password) {
+        if (usersDB[username].pass !== password) {
             loginError.textContent = 'Invalid password.';
             loginError.style.display = 'block';
             return;
@@ -28,6 +43,25 @@ function login(username, password) {
     } else {
         window.location.href = 'home';
     }
+}
+
+// Toggles
+if (showRegister) {
+    showRegister.addEventListener('click', (e) => {
+        e.preventDefault();
+        loginForm.style.display = 'none';
+        registerForm.style.display = 'block';
+        loginError.style.display = 'none';
+    });
+}
+
+if (showLogin) {
+    showLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        registerForm.style.display = 'none';
+        loginForm.style.display = 'block';
+        regError.style.display = 'none';
+    });
 }
 
 if (loginForm) {
@@ -45,30 +79,32 @@ if (btnGuest) {
     });
 }
 
-if (btnRegister) {
-    btnRegister.addEventListener('click', () => {
-        const username = document.getElementById('login-username').value.trim();
-        const pass = document.getElementById('login-password').value;
+if (registerForm) {
+    registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('reg-email').value.trim();
+        const username = document.getElementById('reg-username').value.trim();
+        const pass = document.getElementById('reg-password').value;
         
-        if (!username || !pass) {
-            loginError.textContent = 'Username and password required to register.';
-            loginError.style.display = 'block';
+        if (!username || !pass || !email) {
+            regError.textContent = 'All fields are required to register.';
+            regError.style.display = 'block';
             return;
         }
         
         if (username.toLowerCase() === 'guest') {
-            loginError.textContent = 'Cannot register as guest.';
-            loginError.style.display = 'block';
+            regError.textContent = 'Cannot register as guest.';
+            regError.style.display = 'block';
             return;
         }
         
         if (usersDB[username]) {
-            loginError.textContent = 'Username already exists. Please login.';
-            loginError.style.display = 'block';
+            regError.textContent = 'Username already exists. Please login.';
+            regError.style.display = 'block';
             return;
         }
         
-        usersDB[username] = pass;
+        usersDB[username] = { pass: pass, email: email };
         localStorage.setItem('prepmate_users', JSON.stringify(usersDB));
         login(username, pass);
     });
