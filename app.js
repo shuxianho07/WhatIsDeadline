@@ -1,8 +1,19 @@
 // Constants
-const STORAGE_KEY = 'prepmate_events';
-const DAILY_HOURS_LIMIT = 5; // Max 5 hours of prep per day total based on user preference
+let STORAGE_KEY = 'prepmate_events';
+let COURSES_KEY = 'prepmate_courses';
+const DAILY_HOURS_LIMIT = 5;
+
+// Auth State
+let currentUser = null;
+let usersDB = JSON.parse(localStorage.getItem('prepmate_users')) || { admin: '123456' };
 
 // DOM Elements
+const loginWrapper = document.getElementById('login-wrapper');
+const appWrapper = document.getElementById('app-wrapper');
+const loginForm = document.getElementById('login-form');
+const btnGuest = document.getElementById('btn-guest');
+const loginError = document.getElementById('login-error');
+
 const quickAddForm = document.getElementById('quick-add-form');
 const editForm = document.getElementById('edit-task-form');
 const editModal = document.getElementById('edit-modal');
@@ -15,26 +26,46 @@ const dailyProgressBar = document.getElementById('daily-progress-bar');
 const dailyHoursText = document.getElementById('daily-hours-text');
 
 // State
-let events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+let events = [];
 let currentCourseFilter = 'All';
-let currentView = 'list'; // 'list', 'table', 'calendar'
+let currentView = 'list';
 let calendarInstance = null;
-
-let coursesList = JSON.parse(localStorage.getItem('prepmate_courses')) || [];
-// Backwards compatibility
-if (coursesList.length === 0) {
-    const existingCourses = [...new Set(events.map(e => e.course).filter(Boolean))];
-    if (existingCourses.length > 0) {
-        coursesList = existingCourses.map(name => ({ name: name, color: '' }));
-        localStorage.setItem('prepmate_courses', JSON.stringify(coursesList));
-    }
-} else if (coursesList.length > 0 && typeof coursesList[0] === 'string') {
-    // Migrate from array of strings to array of objects
-    coursesList = coursesList.map(name => ({ name: name, color: '' }));
-    localStorage.setItem('prepmate_courses', JSON.stringify(coursesList));
-}
-
+let coursesList = [];
 let datePicker;
+
+function loadDataForUser() {
+    STORAGE_KEY = `prepmate_events_${currentUser}`;
+    COURSES_KEY = `prepmate_courses_${currentUser}`;
+
+    // Migration for admin
+    if (currentUser === 'admin') {
+        const legacyEvents = localStorage.getItem('prepmate_events');
+        const legacyCourses = localStorage.getItem('prepmate_courses');
+        
+        if (legacyEvents && !localStorage.getItem(STORAGE_KEY)) {
+            localStorage.setItem(STORAGE_KEY, legacyEvents);
+            localStorage.removeItem('prepmate_events');
+        }
+        if (legacyCourses && !localStorage.getItem(COURSES_KEY)) {
+            localStorage.setItem(COURSES_KEY, legacyCourses);
+            localStorage.removeItem('prepmate_courses');
+        }
+    }
+
+    events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    coursesList = JSON.parse(localStorage.getItem(COURSES_KEY)) || [];
+    
+    if (coursesList.length === 0) {
+        const existingCourses = [...new Set(events.map(e => e.course).filter(Boolean))];
+        if (existingCourses.length > 0) {
+            coursesList = existingCourses.map(name => ({ name: name, color: '' }));
+            localStorage.setItem(COURSES_KEY, JSON.stringify(coursesList));
+        }
+    } else if (coursesList.length > 0 && typeof coursesList[0] === 'string') {
+        coursesList = coursesList.map(name => ({ name: name, color: '' }));
+        localStorage.setItem(COURSES_KEY, JSON.stringify(coursesList));
+    }
+}
 
 // Initialize
 function init() {
@@ -264,7 +295,7 @@ if (btnAddCourse && newCourseInput) {
         const val = newCourseInput.value.trim();
         if (val && !coursesList.some(c => c.name === val)) {
             coursesList.push({ name: val, color: '' });
-            localStorage.setItem('prepmate_courses', JSON.stringify(coursesList));
+            localStorage.setItem(COURSES_KEY, JSON.stringify(coursesList));
             updateCourseFilterOptions(); 
         }
         newCourseInput.value = '';
@@ -309,7 +340,7 @@ if (ctxColorBtn && ctxColorPicker) {
         const courseObj = coursesList.find(c => c.name === currentContextCourse);
         if (courseObj) {
             courseObj.color = newColor;
-            localStorage.setItem('prepmate_courses', JSON.stringify(coursesList));
+            localStorage.setItem(COURSES_KEY, JSON.stringify(coursesList));
             renderCourseButtonsInModal(document.getElementById('edit-course').value);
             renderEvents();
             renderTodaysPlan();
@@ -327,7 +358,7 @@ if (ctxRenameBtn) {
             const courseObj = coursesList.find(c => c.name === currentContextCourse);
             if (courseObj) {
                 courseObj.name = trimmedName;
-                localStorage.setItem('prepmate_courses', JSON.stringify(coursesList));
+                localStorage.setItem(COURSES_KEY, JSON.stringify(coursesList));
             }
             
             let updatedEvents = false;
@@ -368,7 +399,7 @@ if (closeDeleteModalBtn) {
 
 function executeFolderDeletion(deleteTasksAlso) {
     coursesList = coursesList.filter(c => c.name !== currentContextCourse);
-    localStorage.setItem('prepmate_courses', JSON.stringify(coursesList));
+    localStorage.setItem(COURSES_KEY, JSON.stringify(coursesList));
     
     if (deleteTasksAlso) {
         events = events.filter(e => e.course !== currentContextCourse);
@@ -734,5 +765,91 @@ if (btnExport && fileImport) {
     });
 }
 
-// Boot up
-init();
+// Auth Flow
+function login(username, password) {
+    if (!username) username = 'guest';
+
+    if (username !== 'guest') {
+        if (!usersDB[username]) {
+            loginError.textContent = 'Account not found. Click Register.';
+            loginError.style.display = 'block';
+            return;
+        }
+        if (usersDB[username] !== password) {
+            loginError.textContent = 'Invalid password.';
+            loginError.style.display = 'block';
+            return;
+        }
+    }
+    
+    currentUser = username;
+    loginError.style.display = 'none';
+    loginWrapper.style.display = 'none';
+    appWrapper.style.display = 'flex'; // It's a flex container usually, or block
+    
+    loadDataForUser();
+    init();
+}
+
+if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const user = document.getElementById('login-username').value.trim();
+        const pass = document.getElementById('login-password').value;
+        login(user, pass);
+    });
+}
+
+if (btnGuest) {
+    btnGuest.addEventListener('click', () => {
+        login('guest', '');
+    });
+}
+
+const btnRegister = document.getElementById('btn-register');
+if (btnRegister) {
+    btnRegister.addEventListener('click', () => {
+        const username = document.getElementById('login-username').value.trim();
+        const pass = document.getElementById('login-password').value;
+        
+        if (!username || !pass) {
+            loginError.textContent = 'Username and password required to register.';
+            loginError.style.display = 'block';
+            return;
+        }
+        
+        if (username.toLowerCase() === 'guest') {
+            loginError.textContent = 'Cannot register as guest.';
+            loginError.style.display = 'block';
+            return;
+        }
+        
+        if (usersDB[username]) {
+            loginError.textContent = 'Username already exists. Please login.';
+            loginError.style.display = 'block';
+            return;
+        }
+        
+        usersDB[username] = pass;
+        localStorage.setItem('prepmate_users', JSON.stringify(usersDB));
+        login(username, pass);
+    });
+}
+
+const btnLogout = document.getElementById('btn-logout');
+if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+        // Reset state
+        currentUser = null;
+        appWrapper.style.display = 'none';
+        loginWrapper.style.display = 'flex';
+        document.getElementById('login-username').value = '';
+        document.getElementById('login-password').value = '';
+        
+        // Optionally reload the page for a clean slate
+        window.location.reload();
+    });
+}
+
+// Do NOT boot up automatically until login
+// init();
