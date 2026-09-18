@@ -768,6 +768,12 @@ if (btnExport && fileImport) {
 const btnLogout = document.getElementById('btn-logout');
 if (btnLogout) {
     btnLogout.addEventListener('click', () => {
+        // Clear guest data on logout
+        if (currentUser === 'guest') {
+            localStorage.removeItem('prepmate_events_guest');
+            localStorage.removeItem('prepmate_courses_guest');
+        }
+        
         // Reset state
         sessionStorage.removeItem('currentUser');
         window.location.href = 'index.html';
