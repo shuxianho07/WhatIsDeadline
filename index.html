@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>what do you mean there is a test tomorrow?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Flatpickr Calendar -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <div class="background-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <div class="app-container">
+        <header class="glass-panel header-flex">
+            <div>
+                <h1><i class="fa-solid fa-brain"></i> what do you mean there is a test tomorrow?</h1>
+                <p>Your intelligent study & prep scheduler</p>
+            </div>
+            <div class="header-actions">
+                <button id="btn-export" class="btn-secondary"><i class="fa-solid fa-download"></i> Export</button>
+                <label for="file-import" class="btn-secondary"><i class="fa-solid fa-upload"></i> Import</label>
+                <input type="file" id="file-import" accept=".json" style="display: none;">
+            </div>
+        </header>
+
+        <main class="grid-layout">
+            <!-- Left Column: Quick Add & Drafts -->
+            <div class="left-column-wrapper">
+                <section class="glass-panel add-event-section">
+                    <h2><i class="fa-solid fa-bolt"></i> Quick Add Task</h2>
+                    <form id="quick-add-form" style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="quick-task-title" placeholder="e.g. CS245 Final..." required style="flex: 1;">
+                        <button type="submit" class="btn-primary" style="margin-top: 0; padding: 0.75rem 1rem;"><i class="fa-solid fa-plus"></i></button>
+                    </form>
+                </section>
+
+                <section class="glass-panel drafts-section" style="margin-top: 2rem;">
+                    <h2><i class="fa-solid fa-inbox"></i> Needs Details</h2>
+                    <p class="subtitle" style="font-size: 0.85rem; margin-bottom: 1rem;">Tasks without a due date will wait here.</p>
+                    <ul id="drafts-list" class="task-list">
+                        <!-- Drafts populated via JS -->
+                    </ul>
+                </section>
+            </div>
+
+            <!-- Middle/Right Column: Dashboard -->
+            <div class="dashboard-columns">
+                <!-- Today's Plan -->
+                <section class="glass-panel todays-plan">
+                    <h2><i class="fa-solid fa-calendar-day"></i> Today's Optimized Plan</h2>
+                    <p class="subtitle" id="date-display"></p>
+                    
+                    <div class="progress-container">
+                        <div class="progress-header">
+                            <span>Daily Goal</span>
+                            <span id="daily-hours-text">0 / 0 Hours</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="daily-progress-bar"></div>
+                        </div>
+                    </div>
+
+                    <ul id="todays-tasks" class="task-list">
+                        <!-- Tasks populated via JS -->
+                        <div class="empty-state">Loading your plan...</div>
+                    </ul>
+                </section>
+
+                <!-- Upcoming Events -->
+                <section class="glass-panel upcoming-events">
+                    <div class="events-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h2 style="margin-bottom: 0;"><i class="fa-solid fa-calendar-days"></i> Upcoming Deadlines</h2>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="view-toggles" style="display: flex; gap: 0.25rem;">
+                                <button class="view-btn active" data-view="list" title="List View"><i class="fa-solid fa-list"></i></button>
+                                <button class="view-btn" data-view="table" title="Table View"><i class="fa-solid fa-table"></i></button>
+                                <button class="view-btn" data-view="calendar" title="Calendar View"><i class="fa-regular fa-calendar"></i></button>
+                            </div>
+                            <select id="course-filter" class="course-filter-select">
+                                <option value="All">All Courses</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <ul id="events-list" class="event-list">
+                        <!-- Rendered via JS -->
+                    </ul>
+
+                    <div id="events-table-container" style="display: none; width: 100%; overflow-x: auto;">
+                        <table class="events-table">
+                            <thead>
+                                <tr>
+                                    <th>Title</th>
+                                    <th>Course</th>
+                                    <th>Type</th>
+                                    <th>Due Date</th>
+                                    <th>Progress</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="events-table-body">
+                                <!-- Rendered via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="events-calendar-container" style="display: none; width: 100%; min-height: 500px; margin-top: 1rem;">
+                        <div id="full-calendar"></div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Course Context Menu -->
+    <div id="course-context-menu" class="context-menu">
+        <button class="context-btn" id="ctx-color"><i class="fa-solid fa-palette"></i> Change Color</button>
+        <input type="color" id="ctx-color-picker" style="opacity: 0; position: absolute; pointer-events: none;">
+        <button class="context-btn" id="ctx-rename"><i class="fa-solid fa-pen"></i> Rename Folder</button>
+        <button class="context-btn text-danger" id="ctx-delete"><i class="fa-solid fa-trash"></i> Delete Folder</button>
+    </div>
+
+    <!-- Delete Course Modal -->
+    <div id="delete-course-modal" class="modal" style="z-index: 1050;">
+        <div class="modal-content glass-panel" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2 style="color: #ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Delete Folder</h2>
+                <span class="close-modal" id="close-delete-modal">&times;</span>
+            </div>
+            <p style="margin-bottom: 1.5rem;">How would you like to delete the folder <strong id="delete-folder-name"></strong>?</p>
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                <button class="btn-secondary" id="btn-delete-folder-only" style="justify-content: center; flex-direction: column;">
+                    <span>Delete Folder Only</span>
+                    <span style="font-size: 0.8rem; font-weight: 300; color: var(--text-secondary);">Tasks will be kept but untagged.</span>
+                </button>
+                <button class="btn-primary" id="btn-delete-folder-tasks" style="background: #ef4444; justify-content: center; flex-direction: column; text-align: center;">
+                    <span>Delete Folder & All Tasks</span>
+                    <span style="font-size: 0.8rem; font-weight: 300; opacity: 0.8;">WARNING: This permanently deletes all tasks inside.</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-pen-to-square"></i> Task Details</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <form id="edit-task-form">
+                <input type="hidden" id="edit-task-id">
+                <div class="form-group">
+                    <label for="edit-title">Event Title</label>
+                    <input type="text" id="edit-title" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Course / Folder (Optional)</label>
+                    <div id="course-selection-container" class="course-buttons">
+                        <!-- Rendered via JS -->
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                        <input type="text" id="new-course-input" placeholder="New Course..." style="flex: 1; padding: 0.5rem;">
+                        <button type="button" id="btn-add-course" class="btn-secondary" style="padding: 0.5rem 1rem;"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <input type="hidden" id="edit-course">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-type">Type</label>
+                        <select id="edit-type">
+                            <option value="Test">Test</option>
+                            <option value="Quiz">Quiz</option>
+                            <option value="Assessment">Assessment</option>
+                            <option value="Interview">Interview</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-date">Due Date</label>
+                        <input type="text" id="edit-date" placeholder="Select a date...">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit-hours">Est. Prep Time (Hours)</label>
+                        <input type="number" id="edit-hours" min="1" max="500" value="10">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="edit-completed-hours">Hours Completed</label>
+                        <input type="number" id="edit-completed-hours" min="0" max="500" value="0" step="0.5">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="edit-difficulty">Difficulty (1-5)</label>
+                        <input type="number" id="edit-difficulty" min="1" max="5" value="3">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-primary" style="width: 100%;">Save Details</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <script src="app.js"></script>
+</body>
+</html>
