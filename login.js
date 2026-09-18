@@ -23,7 +23,11 @@ function login(username, password) {
     
     // Save session and redirect
     sessionStorage.setItem('currentUser', username);
-    window.location.href = 'home.html';
+    if (window.location.protocol === 'file:') {
+        window.location.href = 'home.html';
+    } else {
+        window.location.href = 'home';
+    }
 }
 
 if (loginForm) {
