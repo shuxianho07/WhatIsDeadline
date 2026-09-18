@@ -103,6 +103,28 @@ if (registerForm) {
             regError.style.display = 'block';
             return;
         }
+
+        // 1 account per email limit
+        const emailExists = Object.values(usersDB).some(user => user.email === email);
+        if (emailExists) {
+            regError.textContent = 'This email is already registered to an account.';
+            regError.style.display = 'block';
+            return;
+        }
+        
+        // Rate Limiting: max 50 registries per IP (simulated locally) per 3.14 seconds
+        let attempts = JSON.parse(localStorage.getItem('prepmate_reg_attempts')) || [];
+        const now = Date.now();
+        attempts = attempts.filter(time => now - time < 3140); // 3.14 seconds
+        
+        if (attempts.length >= 50) {
+            regError.textContent = 'Rate limit exceeded: too many requests.';
+            regError.style.display = 'block';
+            return;
+        }
+        
+        attempts.push(now);
+        localStorage.setItem('prepmate_reg_attempts', JSON.stringify(attempts));
         
         usersDB[username] = { pass: pass, email: email };
         localStorage.setItem('prepmate_users', JSON.stringify(usersDB));
